@@ -4,9 +4,9 @@ from dirigo.hw_interfaces.detector import Detector
 
 class PDA4X(Detector):
 
-    def __init__(self, model_number: str, **kwargs):
+    def __init__(self, model: str, **kwargs):
         super().__init__()
-        self._model = model_number
+        self._model = model
 
     @property
     def enabled(self) -> bool:
