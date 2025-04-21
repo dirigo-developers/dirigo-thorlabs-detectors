@@ -2,8 +2,9 @@ from dirigo import units
 from dirigo.hw_interfaces.detector import Detector
 
 
-class PDA4X(Detector):
 
+class PDA4X(Detector):
+    """Thorlabs PDA4x-series Silicon Photomultiplier Modules."""
     def __init__(self, model: str, **kwargs):
         super().__init__()
         self._model = model
@@ -24,6 +25,10 @@ class PDA4X(Detector):
     @gain.setter
     def gain(self, value) -> None: 
         raise NotImplementedError("PDA4X SiPMs cannot adjust gain in software.")
+    
+    @property
+    def gain_range(self):
+        return units.ValueRange(min=0, max=9) # manually set positions
 
     @property
     def bandwidth(self) -> units.Frequency: 
