@@ -15,5 +15,5 @@ license = {text = "MIT"}
 # ]
 
 [project.entry-points."dirigo_detectors"]
-pda4x = "dirigo_thorlabs_detectors:PDA4X"
-# ... many others to implement
+pda40 = "dirigo_thorlabs_detectors:PDA40"
+pmt2100 = "dirigo_thorlabs_detectors:PMT2100"
