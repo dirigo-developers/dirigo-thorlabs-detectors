@@ -1,4 +1,5 @@
 import serial
+import pyvisa
 
 from dirigo import units
 from dirigo.hw_interfaces.detector import Detector
@@ -17,16 +18,16 @@ class PDA40(Detector):
     
     @enabled.setter
     def enabled(self, value: bool) -> None:
-        raise NotImplementedError("PDA4X SiPMs cannot be enabled/disabled in software.")
+        raise NotImplementedError("PDA40 SiPMs cannot be enabled/disabled in software.")
     
     @property
     def gain(self):
         """Switchable gain; raise NotImplementedError if fixed."""
-        raise NotImplementedError("PDA4X SiPMs cannot report current gain.")
+        raise NotImplementedError("Gain can not be reported with PDA40 SiPMs")
 
     @gain.setter
     def gain(self, value) -> None: 
-        raise NotImplementedError("PDA4X SiPMs cannot adjust gain in software.")
+        raise NotImplementedError("Gain is not adjustable with PDA40 SiPMs")
     
     @property
     def gain_range(self):
@@ -39,11 +40,11 @@ class PDA40(Detector):
 
     @bandwidth.setter
     def bandwidth(self, value: units.Frequency):
-        raise NotImplementedError("Bandwidth is not adjustable with PDA4X SiPMs")
+        raise NotImplementedError("Bandwidth is not adjustable with PDA40 SiPMs")
 
 
 
-class PMT2100:
+class PMT2100(Detector):
     """
     Thorlabs PMT2101 controller via SCPI over USB.
 
@@ -53,45 +54,42 @@ class PMT2100:
 
     def __init__(
         self,
-        com_port: int,
-        baudrate: int = 115200,
-        timeout: float = 1.0,
+        serial_number: int,
+        timeout: float = units.Time("1 s"),
+        **kwargs
     ) -> None:
         super().__init__()
-        self._ser = serial.Serial("COM" + str(com_port), baudrate, timeout=timeout)
-        #self._logger = logging.getLogger(f"{self.__class__.__name__}[{port}]")
+        
+        rm = pyvisa.ResourceManager()        # Uses the system VISA (Keysight/NI)
+        
+        self._res = rm.open_resource(f"USB0::0x1313::0x2F00::{serial_number}::0::INSTR")
+        self._res.timeout = int(1000*timeout)
+        #print(pmt.query("*IDN?"))
+
+        self._sensor = self._res.query("SENS:DET?") # returns the sensor name, e.g. 'H10721'
+
         self._index = -1  # will be set by DetectorSet
-
-    def _write(self, cmd: str) -> None:
-        full_cmd = cmd.strip() + "\n"
-        #self._logger.debug("→ %s", full_cmd.strip())
-        self._ser.write(full_cmd.encode("ascii"))
-
-    def _query(self, cmd: str) -> str:
-        self._write(cmd)
-        resp = self._ser.readline().decode("ascii", errors="ignore").strip()
-        #self._logger.debug("← %s", resp)
-        return resp
-    
-    def _select(self, channel: str) -> None:
-        self._write(f":SELect {channel}")
 
     def close(self) -> None:
         """Close the serial port when done."""
-        self._ser.close()
+        self._res.close()
 
     # ------------------------------------------------------ Detector API
     @property
     def enabled(self) -> bool:
         """Turns the PMT high-voltage on/off."""
-        resp = self._query(":FUNCtion:STATe? PMT")
+        resp = self._res.query(f"SENS:FUNC:STAT? {self._sensor}")
         # device returns "1" for on, "0" for off
+        print(resp)
         return resp == "1"
 
     @enabled.setter
     def enabled(self, state: bool) -> None:
-        cmd = ":FUNCtion:ON PMT" if state else ":FUNCtion:OFF PMT"
-        self._write(cmd)
+        if state:
+            cmd = f"SENS:FUNC:ON {self._sensor}"  
+        else:
+            cmd = f"SENS:FUNC:OFF {self._sensor}"
+        self._res.write(cmd)
 
     # TODO, add offset, bias
 
@@ -100,17 +98,17 @@ class PMT2100:
         """
         PMT gain (really the gain control voltage) in volts.
         """
-        self._select("GAIN")
-        resp = self._query(":VOLTage:LEVel:IMMediate:AMPlitude?")
+        self._res.write("INST:SEL GAIN")
+        resp = self._res.query(":SOUR:VOLT:LEV:IMM:AMPL?")
         return units.Voltage(resp)
 
     @gain.setter
     def gain(self, value) -> None:
-        if not self.gain_range.within_range(value):          # adjust limit if needed
+        if not self.gain_range.within_range(value):
             l, h = self.gain_range.min, self.gain_range.max
             raise ValueError(f"Gain voltage must be between {l} and {h}")
-        self._select("GAIN")
-        self._write(f":VOLTage:LEVel:IMMediate:AMPlitude {float(value)}")
+        self._res.write("INST:SEL GAIN")
+        self._res.write(f":SOUR:VOLT:LEV:IMM:AMPL {float(value)}")
 
     @property
     def gain_range(self) -> units.VoltageRange:
@@ -134,9 +132,9 @@ class PMT2100:
     # ---------------------------------------------------- Optional helpers
     def identify(self) -> str:
         """Query the instrument identity string."""
-        return self._query("*IDN?")
+        return self._res.query("*IDN?")
 
     def status_byte(self) -> int:
         """Read the 488.2 status byte."""
-        resp = self._query("*STB?")
+        resp = self._res.query("*STB?")
         return int(resp)

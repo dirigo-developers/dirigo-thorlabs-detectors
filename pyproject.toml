@@ -3,16 +3,18 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "dirigo_thorlabs_detector"
+name = "dirigo_thorlabs_detectors"
 version = "0.0.1"
 description = "Plugin to use Thorlabs detectors (multiple versions) with Dirigo."
 authors = [
     {name = "T. D. Weber", email = "tweber@mit.edu"}
 ]
 license = {text = "MIT"}
-# dependencies = [
-#     "pythonnet>=3.0.1" # Required to used the .NET framework
-# ]
+dependencies = [
+    "dirigo",
+    "pyserial",
+    "pyvisa"
+]
 
 [project.entry-points."dirigo_detectors"]
 pda40 = "dirigo_thorlabs_detectors:PDA40"
