@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dirigo_thorlabs_detectors"
-version = "0.0.1"
+version = "0.0.2"
 description = "Plugin to use Thorlabs detectors (multiple versions) with Dirigo."
 authors = [
     {name = "T. D. Weber", email = "tweber@mit.edu"}
@@ -16,6 +16,12 @@ dependencies = [
     "pyvisa"
 ]
 
+# deprecated
 [project.entry-points."dirigo_detectors"]
+pda40 = "dirigo_thorlabs_detectors:PDA40"
+pmt2100 = "dirigo_thorlabs_detectors:PMT2100"
+
+# new format
+[project.entry-points."dirigo.devices.detector"]
 pda40 = "dirigo_thorlabs_detectors:PDA40"
 pmt2100 = "dirigo_thorlabs_detectors:PMT2100"
